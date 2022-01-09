@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "crispy_forms",
     # local
     "users",
+    "core",
 ]
 
 SITE_ID = 1
