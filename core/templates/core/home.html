@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block extra_head %}
+  <link href="{% static 'css/chessboard-1.0.0.min.css' %}" rel="stylesheet">
+{% endblock extra_head %}
+
+{% block content %}
+  <div class="container mt-4">
+    <div class="text-center mb-3">
+      <button class="btn btn-primary">Play</button>
+    </div>
+    <div id="myBoard" class="mw-1 mx-auto"></div>
+  </div>
+{% endblock content %}
+
+{% block extra_scripts %}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js" integrity="sha512-xRllwz2gdZciIB+AkEbeq+gVhX8VB8XsfqeFbUh+SzHlN96dEduwtTuVuc2u9EROlmW9+yhRlxjif66ORpsgVA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <script type="text/javascript" src="{% static 'js/chessboard-1.0.0.js' %}"></script>
+  <script type="text/javascript" src="{% static 'core/js/game.js' %}"></script>
+{% endblock extra_scripts %}
