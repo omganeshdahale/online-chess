@@ -16,6 +16,9 @@ $(document).ready(function () {
 
       if (data["command"] === "start") {
         $("#play-btn").hide();
+        $("#opponent-username").text(data["opponent"]);
+        $("#opponent-username").show();
+        $("#username").show();
         colour = data["colour"];
         const config = {
           orientation: colour,

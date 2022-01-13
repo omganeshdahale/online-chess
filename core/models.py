@@ -44,5 +44,8 @@ class Game(models.Model):
         self.status = self.ABANDONED
         self.save()
 
+    def get_opponent(self, user):
+        return self.black if self.white == user else self.white
+
     def __str__(self):
         return f"#{self.pk}: {self.white} vs {self.black}"

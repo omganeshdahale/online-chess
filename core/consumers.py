@@ -20,6 +20,9 @@ class GameConsumer(WebsocketConsumer):
         self.find_opponent_and_start()
 
     def disconnect(self, close_code):
+        if close_code == 1006:
+            return
+
         async_to_sync(self.channel_layer.group_discard)("global", self.channel_name)
         wq = WaitingQueue()
         wq.remove(self.user)
@@ -56,7 +59,11 @@ class GameConsumer(WebsocketConsumer):
             return
 
         async_to_sync(self.channel_layer.group_add)(f"game_{g.pk}", self.channel_name)
-        text_data = {"command": "start", "colour": g.get_colour(self.user)}
+        text_data = {
+            "command": "start",
+            "colour": g.get_colour(self.user),
+            "opponent": g.get_opponent(self.user).username,
+        }
         self.send(text_data=json.dumps(text_data))
 
     def abandon_if_ongoing(self):

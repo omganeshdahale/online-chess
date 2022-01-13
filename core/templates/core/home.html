@@ -11,7 +11,11 @@
     <div class="text-center mb-3">
       <button id="play-btn" class="btn btn-primary">Play</button>
     </div>
-    <div id="myBoard" class="mw-1 mx-auto"></div>
+    <div class="mw-1 mx-auto">
+      <h4 id="opponent-username" style="display: none;"></h4>
+      <div id="myBoard" class="my-2"></div>
+      <h4 id="username" style="display: none;">{{ user }}</h4>
+    </div>
   </div>
 {% endblock content %}
 
