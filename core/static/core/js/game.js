@@ -1,5 +1,8 @@
 $(document).ready(function () {
   var colour;
+  var gameSocket;
+  var board;
+  var game;
 
   function preStart(col, oppo) {
     colour = col;
@@ -10,8 +13,7 @@ $(document).ready(function () {
   }
 
   function start() {
-    var board = null;
-    var game = new Chess();
+    game = new Chess();
     var whiteSquareGrey = "#a9a9a9";
     var blackSquareGrey = "#696969";
 
@@ -63,6 +65,13 @@ $(document).ready(function () {
 
       // illegal move
       if (move === null) return "snapback";
+
+      gameSocket.send(
+        JSON.stringify({
+          command: "move",
+          san: move["san"],
+        })
+      );
     }
 
     function onMouseoverSquare(square, piece) {
@@ -116,6 +125,12 @@ $(document).ready(function () {
     $(window).resize(board.resize);
   }
 
+  function moved(san) {
+    console.log("recieved:", san);
+    game.move(san);
+    board.position(game.fen());
+  }
+
   $("#play-btn").click(function () {
     $(this).prop("disabled", true);
     $(this).html(
@@ -123,11 +138,9 @@ $(document).ready(function () {
        Finding opponent...`
     );
 
-    const chatSocket = new WebSocket(
-      "ws://" + window.location.host + "/ws/game/"
-    );
+    gameSocket = new WebSocket("ws://" + window.location.host + "/ws/game/");
 
-    chatSocket.onmessage = function (e) {
+    gameSocket.onmessage = function (e) {
       const data = JSON.parse(e.data);
 
       if (data["command"] === "start") {
@@ -135,10 +148,12 @@ $(document).ready(function () {
         start();
       } else if (data["command"] === "abandoned") {
         alert(colour + " win by abandonment");
+      } else if (data["command"] === "moved") {
+        moved(data["san"]);
       }
     };
 
-    chatSocket.onclose = function (e) {
+    gameSocket.onclose = function (e) {
       console.error("Chat socket closed unexpectedly");
     };
   });

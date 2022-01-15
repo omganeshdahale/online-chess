@@ -1,4 +1,5 @@
 import json
+import chess
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import WebsocketConsumer
 from .models import Game
@@ -28,15 +29,18 @@ class GameConsumer(WebsocketConsumer):
         wq.remove(self.user)
         self.abandon_if_ongoing()
 
+    def receive(self, text_data):
+        text_data_json = json.loads(text_data)
+
+        if text_data_json["command"] == "move":
+            self.move(text_data_json["san"])
+
     def allow_connect(self):
         if self.user.ongoing_game_exists():
             return False
 
         wq = WaitingQueue()
-        if wq.search(self.user):
-            return False
-
-        return True
+        return not wq.search(self.user)
 
     def find_opponent_and_start(self):
         wq = WaitingQueue()
@@ -88,3 +92,23 @@ class GameConsumer(WebsocketConsumer):
         text_data = {"command": "abandoned"}
         self.send(text_data=json.dumps(text_data))
         self.close()
+
+    def move(self, san):
+        g = self.user.get_ongoing_game()
+        if g.is_user_turn(self.user):
+            if g.move(san):
+                async_to_sync(self.channel_layer.group_send)(
+                    f"game_{g.pk}",
+                    {"type": "moved", "san": san, "colour": g.get_colour(self.user)},
+                )
+
+    def moved(self, event):
+        g = self.user.get_ongoing_game()
+        colour = g.get_colour(self.user)
+
+        if colour != event["colour"]:
+            text_data = {
+                "command": "moved",
+                "san": event["san"],
+            }
+            self.send(text_data=json.dumps(text_data))
