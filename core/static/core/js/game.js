@@ -146,10 +146,18 @@ $(document).ready(function () {
       if (data["command"] === "start") {
         preStart(data["colour"], data["opponent"]);
         start();
-      } else if (data["command"] === "abandoned") {
-        alert(colour + " win by abandonment");
       } else if (data["command"] === "moved") {
         moved(data["san"]);
+      } else if (data["command"] === "win") {
+        alert(data["winner_col"] + " win by " + data["by"]);
+        $("#play-btn").prop("disabled", false);
+        $("#play-btn").html("Play Again");
+        $("#play-btn").show();
+      } else if (data["command"] === "draw") {
+        alert("Draw");
+        $("#play-btn").prop("disabled", false);
+        $("#play-btn").html("Play Again");
+        $("#play-btn").show();
       }
     };
 

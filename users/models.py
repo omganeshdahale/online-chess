@@ -11,8 +11,3 @@ class User(AbstractUser):
         return Game.objects.filter(
             models.Q(white=self) | models.Q(black=self), status=Game.ONGOING
         ).exists()
-
-    def get_ongoing_game(self):
-        return Game.objects.get(
-            models.Q(white=self) | models.Q(black=self), status=Game.ONGOING
-        )
