@@ -40,6 +40,8 @@ class GameConsumer(WebsocketConsumer):
         if text_data_json["command"] == "move":
             self.move_if_legal(text_data_json["san"])
             self.end_if_gameover()
+        elif text_data_json["command"] == "end_if_timeout":
+            self.end_if_timeout()
 
     def allow_connect(self):
         if self.user.ongoing_game_exists():
@@ -89,9 +91,7 @@ class GameConsumer(WebsocketConsumer):
         if g.status != g.ONGOING:  # game ended
             return
 
-        g.status = g.ABANDONED
-        g.winner = self.opponent
-        g.save()
+        g.abandon(self.opponent)
 
         async_to_sync(self.channel_layer.group_send)(
             f"game_{self.game_pk}",
@@ -110,18 +110,28 @@ class GameConsumer(WebsocketConsumer):
         if not g.move_if_legal(san):
             return
 
+        if self.colour == "white":
+            g.update_white_timer()
+        else:
+            g.update_black_timer()
+
         async_to_sync(self.channel_layer.group_send)(
             f"game_{self.game_pk}",
             {"type": "moved", "san": san, "colour": self.colour},
         )
 
     def moved(self, event):
-        if self.colour == event["colour"]:
-            return
+        g = Game.objects.get(pk=self.game_pk)
+        if event["colour"] == "white":
+            deadline = g.get_black_deadline().isoformat()
+        else:
+            deadline = g.get_white_deadline().isoformat()
 
         text_data = {
             "command": "moved",
             "san": event["san"],
+            "colour": event["colour"],
+            "deadline": deadline,
         }
         self.send(text_data=json.dumps(text_data))
 
@@ -130,9 +140,7 @@ class GameConsumer(WebsocketConsumer):
         board = g.get_board()
 
         if board.is_checkmate():
-            g.status = g.CHECKMATE
-            g.winner = self.user
-            g.save()
+            g.checkmate(self.user)
             async_to_sync(self.channel_layer.group_send)(
                 f"game_{self.game_pk}",
                 {
@@ -147,8 +155,7 @@ class GameConsumer(WebsocketConsumer):
             or board.is_fifty_moves()
             or board.is_repetition()
         ):
-            g.status = g.DRAW
-            g.save()
+            g.draw()
             async_to_sync(self.channel_layer.group_send)(
                 f"game_{self.game_pk}",
                 {
@@ -169,3 +176,27 @@ class GameConsumer(WebsocketConsumer):
         text_data = {"command": "draw"}
         self.send(text_data=json.dumps(text_data))
         self.close()
+
+    def end_if_timeout(self):
+        g = Game.objects.get(pk=self.game_pk)
+        if g.is_white_timeup():
+            g.timeout(g.black)
+            async_to_sync(self.channel_layer.group_send)(
+                f"game_{self.game_pk}",
+                {
+                    "type": "end_by_win",
+                    "winner_col": "black",
+                    "by": "timeout",
+                },
+            )
+
+        elif g.is_black_timeup():
+            g.timeout(g.white)
+            async_to_sync(self.channel_layer.group_send)(
+                f"game_{self.game_pk}",
+                {
+                    "type": "end_by_win",
+                    "winner_col": "white",
+                    "by": "timeout",
+                },
+            )

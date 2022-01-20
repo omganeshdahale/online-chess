@@ -3,16 +3,34 @@ $(document).ready(function () {
   var gameSocket;
   var board;
   var game;
+  var userDeadline;
+  var opponentDeadline;
+  var userIntervalID;
+  var opponentIntervalID;
+  var gameover = false;
+
+  const DURATION = 10 * 60 * 1000; // in ms
+  const DUR_SEC = Math.floor((DURATION / 1000) % 60);
+  const DUR_MIN = Math.floor(DURATION / (1000 * 60));
+  const DUR_SEC_TEXT = DUR_SEC < 10 ? `0${DUR_SEC}` : DUR_SEC;
+  const DUR_MIN_TEXT = DUR_MIN < 10 ? `0${DUR_MIN}` : DUR_MIN;
 
   function preStart(col, oppo) {
+    /*set var colour and gameover, hide play button, update opponent username, timers and show player containers.*/
     colour = col;
+    gameover = false;
     $("#play-btn").hide();
     $("#opponent-username").text(oppo);
-    $("#opponent-username").show();
-    $("#username").show();
+    $("#opponent-timer").text(`${DUR_MIN_TEXT}:${DUR_SEC_TEXT}`);
+    $("#opponent-timer").removeClass("badge-warning badge-danger");
+    $("#user-timer").text(`${DUR_MIN_TEXT}:${DUR_SEC_TEXT}`);
+    $("#user-timer").removeClass("badge-warning badge-danger");
+    $("#opponent-container").show();
+    $("#user-container").show();
   }
 
   function start() {
+    /*Initialize and configure game and board.*/
     game = new Chess();
     var whiteSquareGrey = "#a9a9a9";
     var blackSquareGrey = "#696969";
@@ -35,6 +53,9 @@ $(document).ready(function () {
     function onDragStart(source, piece) {
       // do not pick up pieces if the game is over
       if (game.game_over()) return false;
+
+      // gameover by abandonment or timeout
+      if (gameover) return false;
 
       // or if it's not the player's side
       if (
@@ -125,10 +146,29 @@ $(document).ready(function () {
     $(window).resize(board.resize);
   }
 
-  function moved(san) {
-    console.log("recieved:", san);
-    game.move(san);
-    board.position(game.fen());
+  function moved(san, col, deadline) {
+    /*Update game and board, and start/stop timers.*/
+    if (col !== colour) {
+      game.move(san);
+      board.position(game.fen());
+      userDeadline = new Date(deadline);
+      clearInterval(opponentIntervalID);
+      userIntervalID = setInterval(updateUserTimer, 100);
+    } else {
+      opponentDeadline = new Date(deadline);
+      clearInterval(userIntervalID);
+      opponentIntervalID = setInterval(updateOpponentTimer, 100);
+    }
+  }
+
+  function endGame() {
+    /*Set var gameover, enable and show play button, and clear timer intervals.*/
+    gameover = true;
+    $("#play-btn").prop("disabled", false);
+    $("#play-btn").html("Play Again");
+    $("#play-btn").show();
+    clearInterval(userIntervalID);
+    clearInterval(opponentIntervalID);
   }
 
   $("#play-btn").click(function () {
@@ -143,21 +183,17 @@ $(document).ready(function () {
     gameSocket.onmessage = function (e) {
       const data = JSON.parse(e.data);
 
-      if (data["command"] === "start") {
-        preStart(data["colour"], data["opponent"]);
+      if (data.command === "start") {
+        preStart(data.colour, data.opponent);
         start();
-      } else if (data["command"] === "moved") {
-        moved(data["san"]);
-      } else if (data["command"] === "win") {
-        alert(data["winner_col"] + " win by " + data["by"]);
-        $("#play-btn").prop("disabled", false);
-        $("#play-btn").html("Play Again");
-        $("#play-btn").show();
-      } else if (data["command"] === "draw") {
+      } else if (data.command === "moved")
+        moved(data.san, data.colour, data.deadline);
+      else if (data.command === "win") {
+        endGame();
+        alert(data.winner_col + " win by " + data.by);
+      } else if (data.command === "draw") {
+        endGame();
         alert("Draw");
-        $("#play-btn").prop("disabled", false);
-        $("#play-btn").html("Play Again");
-        $("#play-btn").show();
       }
     };
 
@@ -165,4 +201,34 @@ $(document).ready(function () {
       console.error("Chat socket closed unexpectedly");
     };
   });
+
+  function updateTimer(t, selector) {
+    const sec = Math.floor((t / 1000) % 60);
+    const min = Math.floor((t / (1000 * 60)) % 60);
+
+    const secText = sec < 10 ? `0${sec}` : sec;
+    const minText = min < 10 ? `0${min}` : min;
+
+    if (t <= 0)
+      return gameSocket.send(JSON.stringify({ command: "end_if_timeout" }));
+    else if (t <= (DURATION / 100) * 10) {
+      $(selector).addClass("badge-danger");
+      $(selector).removeClass("badge-warning");
+    } else if (t <= (DURATION / 100) * 30)
+      $(selector).addClass("badge-warning");
+
+    $(selector).text(`${minText}:${secText}`);
+  }
+
+  function updateUserTimer() {
+    const now = Date.now();
+    const diff = userDeadline - now;
+    updateTimer(diff, "#user-timer");
+  }
+
+  function updateOpponentTimer() {
+    const now = Date.now();
+    const diff = opponentDeadline - now;
+    updateTimer(diff, "#opponent-timer");
+  }
 });

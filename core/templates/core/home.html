@@ -12,9 +12,23 @@
       <button id="play-btn" class="btn btn-primary">Play</button>
     </div>
     <div class="mw-1 mx-auto">
-      <h4 id="opponent-username" style="display: none;"></h4>
+      <div id="opponent-container" class="row" style="display: none;">
+        <div class="col-6">
+          <h4 id="opponent-username"></h4>
+        </div>
+        <div class="col-6 text-right">
+          <h4 class="mb-0"><span id="opponent-timer" class="badge badge-primary p-2"></span></h4>
+        </div>
+      </div>
       <div id="myBoard" class="my-2"></div>
-      <h4 id="username" style="display: none;">{{ user }}</h4>
+      <div id="user-container" class="row" style="display: none;">
+        <div class="col-6">
+          <h4 id="username">{{ user }}</h4>
+        </div>
+        <div class="col-6 text-right">
+          <h4><span id="user-timer" class="badge badge-primary p-2"></span></h4>
+        </div>
+      </div>
     </div>
   </div>
 {% endblock content %}
