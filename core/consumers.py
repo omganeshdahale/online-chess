@@ -39,7 +39,6 @@ class GameConsumer(WebsocketConsumer):
 
         if text_data_json["command"] == "move":
             self.move_if_legal(text_data_json["san"])
-            self.end_if_gameover()
         elif text_data_json["command"] == "end_if_timeout":
             self.end_if_timeout()
 
@@ -74,6 +73,7 @@ class GameConsumer(WebsocketConsumer):
         self.colour = g.get_user_colour(self.user)
         self.opponent = g.get_user_opponent(self.user)
         self.opponent_colour = g.get_user_colour(self.opponent)
+        self.board = g.get_board()
 
         async_to_sync(self.channel_layer.group_add)(f"game_{g.pk}", self.channel_name)
         text_data = {
@@ -121,6 +121,8 @@ class GameConsumer(WebsocketConsumer):
         )
 
     def moved(self, event):
+        self.board.push_san(event["san"])
+
         g = Game.objects.get(pk=self.game_pk)
         if event["colour"] == "white":
             deadline = g.get_black_deadline().isoformat()
@@ -135,11 +137,12 @@ class GameConsumer(WebsocketConsumer):
         }
         self.send(text_data=json.dumps(text_data))
 
-    def end_if_gameover(self):
-        g = Game.objects.get(pk=self.game_pk)
-        board = g.get_board()
+        if event["colour"] == self.colour:
+            self.end_if_gameover()
 
-        if board.is_checkmate():
+    def end_if_gameover(self):
+        if self.board.is_checkmate():
+            g = Game.objects.get(pk=self.game_pk)
             g.checkmate(self.user)
             async_to_sync(self.channel_layer.group_send)(
                 f"game_{self.game_pk}",
@@ -150,11 +153,12 @@ class GameConsumer(WebsocketConsumer):
                 },
             )
         elif (
-            board.is_stalemate()
-            or board.is_insufficient_material()
-            or board.is_fifty_moves()
-            or board.is_repetition()
+            self.board.is_stalemate()
+            or self.board.is_insufficient_material()
+            or self.board.is_fifty_moves()
+            or self.board.is_repetition()
         ):
+            g = Game.objects.get(pk=self.game_pk)
             g.draw()
             async_to_sync(self.channel_layer.group_send)(
                 f"game_{self.game_pk}",
