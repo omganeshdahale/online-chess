@@ -26,21 +26,6 @@
 
       <!-- Right -->
       <ul class="navbar-nav nav-flex-icons">
-        {% if user.is_authenticated %}
-          <li class="nav-item">
-            <a href="{% url 'account_profile' %}" class="btn btn-primary btn-sm waves-effect">Profile</a>
-          </li>
-          <li class="nav-item">
-            <a href="{% url 'account_logout' %}" class="btn btn-danger btn-sm waves-effect">Logout</a>
-          </li>
-        {% else %}
-          <li class="nav-item">
-            <a href="{% url 'account_login' %}" class="btn btn-primary btn-sm waves-effect">Sign In</a>
-          </li>
-          <li class="nav-item">
-            <a href="{% url 'account_signup' %}" class="btn btn-secondary btn-sm waves-effect">Sign Up</a>
-          </li>
-        {% endif %}
       </ul>
 
     </div>

@@ -1,6 +1,5 @@
 $(document).ready(function () {
   var colour;
-  var gameSocket;
   var board;
   var game;
   var userDeadline;
@@ -15,7 +14,7 @@ $(document).ready(function () {
   const DUR_SEC_TEXT = DUR_SEC < 10 ? `0${DUR_SEC}` : DUR_SEC;
   const DUR_MIN_TEXT = DUR_MIN < 10 ? `0${DUR_MIN}` : DUR_MIN;
 
-  function preStart(col, oppo) {
+  function preStart(col, user, oppo) {
     /*set var colour and gameover, hide play button, update opponent username, timers and show player containers.*/
     colour = col;
     gameover = false;
@@ -23,6 +22,7 @@ $(document).ready(function () {
     $("#opponent-username").text(oppo);
     $("#opponent-timer").text(`${DUR_MIN_TEXT}:${DUR_SEC_TEXT}`);
     $("#opponent-timer").removeClass("badge-warning badge-danger");
+    $("#username").text(`You (${user})`);
     $("#user-timer").text(`${DUR_MIN_TEXT}:${DUR_SEC_TEXT}`);
     $("#user-timer").removeClass("badge-warning badge-danger");
     $("#opponent-container").show();
@@ -96,6 +96,8 @@ $(document).ready(function () {
     }
 
     function onMouseoverSquare(square, piece) {
+      if (gameover) return false;
+
       // exit if it's not the player's side
       if (piece) {
         if (
@@ -178,28 +180,7 @@ $(document).ready(function () {
        Finding opponent...`
     );
 
-    gameSocket = new WebSocket("ws://" + window.location.host + "/ws/game/");
-
-    gameSocket.onmessage = function (e) {
-      const data = JSON.parse(e.data);
-
-      if (data.command === "start") {
-        preStart(data.colour, data.opponent);
-        start();
-      } else if (data.command === "moved")
-        moved(data.san, data.colour, data.deadline);
-      else if (data.command === "win") {
-        endGame();
-        alert(data.winner_col + " win by " + data.by);
-      } else if (data.command === "draw") {
-        endGame();
-        alert("Draw");
-      }
-    };
-
-    gameSocket.onclose = function (e) {
-      console.error("Chat socket closed unexpectedly");
-    };
+    gameSocket.send(JSON.stringify({ command: "find_opponent" }));
   });
 
   function updateTimer(t, selector) {
@@ -231,4 +212,29 @@ $(document).ready(function () {
     const diff = opponentDeadline - now;
     updateTimer(diff, "#opponent-timer");
   }
+
+  const gameSocket = new WebSocket(
+    "ws://" + window.location.host + "/ws/game/"
+  );
+
+  gameSocket.onmessage = function (e) {
+    const data = JSON.parse(e.data);
+
+    if (data.command === "start") {
+      preStart(data.colour, data.client, data.opponent);
+      start();
+    } else if (data.command === "moved")
+      moved(data.san, data.colour, data.deadline);
+    else if (data.command === "win") {
+      endGame();
+      alert(data.winner_colour + " win by " + data.by);
+    } else if (data.command === "draw") {
+      endGame();
+      alert("Draw");
+    }
+  };
+
+  gameSocket.onclose = function (e) {
+    console.error("Chat socket closed unexpectedly");
+  };
 });
