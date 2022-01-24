@@ -77,12 +77,35 @@ $(document).ready(function () {
     function onDrop(source, target) {
       removeGreySquares();
 
-      // see if the move is legal
-      var move = game.move({
-        from: source,
-        to: target,
-        promotion: "q", // NOTE: always promote to a queen for example simplicity
-      });
+      const isPromotion =
+        game
+          .moves({ verbose: true })
+          .filter(
+            (move) =>
+              move.from === source &&
+              move.to === target &&
+              move.flags.includes("p")
+          ).length > 0;
+
+      if (isPromotion) {
+        let promotion = prompt(
+          "Enter\nq for queen\nn for knight\nr for rook\nb for bishop",
+          "q"
+        );
+        if (!["q", "n", "r", "b"].find((element) => element === promotion))
+          promotion = "q";
+
+        var move = game.move({
+          from: source,
+          to: target,
+          promotion: promotion,
+        });
+      } else {
+        var move = game.move({
+          from: source,
+          to: target,
+        });
+      }
 
       // illegal move
       if (move === null) return "snapback";
